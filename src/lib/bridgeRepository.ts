@@ -34,30 +34,28 @@ export interface DashboardDistributionItem {
 
 export interface DashboardSummary {
   totalBridges: number;
-  poorConditionBridges: number;
-  criticalPriorityBridges: number;
+  poorConditionCount: number;
+  criticalPriorityCount: number;
   averageBridgeAge: number | null;
-  oldestBridgeAge: number | null;
+  oldestBridge: number | null;
   averageDailyTraffic: number | null;
   statesCovered: number;
   conditionDistribution: DashboardDistributionItem[];
   priorityDistribution: DashboardDistributionItem[];
-  topRiskStates: HotspotRow[];
+  highestRiskStates: HotspotRow[];
 }
 
 interface DashboardStatsRow {
   totalBridges: number;
-  poorConditionBridges: number;
-  criticalPriorityBridges: number;
+  poorConditionCount: number;
+  criticalPriorityCount: number;
   averageBridgeAge: number | null;
-  oldestBridgeAge: number | null;
+  oldestBridge: number | null;
   averageDailyTraffic: number | null;
   statesCovered: number;
   goodConditionCount: number;
   fairConditionCount: number;
-  poorConditionCount: number;
   unknownConditionCount: number;
-  criticalPriorityCount: number;
   highPriorityCount: number;
   mediumPriorityCount: number;
   lowPriorityCount: number;
@@ -207,17 +205,15 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     db.$queryRaw<DashboardStatsRow[]>`
       SELECT
         COUNT(*)::int AS "totalBridges",
-        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionBridges",
-        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalPriorityBridges",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionCount",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalPriorityCount",
         AVG("bridgeAge")::double precision AS "averageBridgeAge",
-        MAX("bridgeAge")::int AS "oldestBridgeAge",
+        MAX("bridgeAge")::int AS "oldestBridge",
         AVG("averageDailyTraffic")::double precision AS "averageDailyTraffic",
         COUNT(DISTINCT "stateCode")::int AS "statesCovered",
         COUNT(*) FILTER (WHERE "bridgeCondition" = 'Good')::int AS "goodConditionCount",
         COUNT(*) FILTER (WHERE "bridgeCondition" = 'Fair')::int AS "fairConditionCount",
-        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionCount",
         COUNT(*) FILTER (WHERE "bridgeCondition" = 'Unknown')::int AS "unknownConditionCount",
-        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalPriorityCount",
         COUNT(*) FILTER (WHERE "priorityLevel" = 'High')::int AS "highPriorityCount",
         COUNT(*) FILTER (WHERE "priorityLevel" = 'Medium')::int AS "mediumPriorityCount",
         COUNT(*) FILTER (WHERE "priorityLevel" = 'Low')::int AS "lowPriorityCount"
@@ -229,10 +225,10 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   return {
     totalBridges: stats.totalBridges,
-    poorConditionBridges: stats.poorConditionBridges,
-    criticalPriorityBridges: stats.criticalPriorityBridges,
+    poorConditionCount: stats.poorConditionCount,
+    criticalPriorityCount: stats.criticalPriorityCount,
     averageBridgeAge: stats.averageBridgeAge,
-    oldestBridgeAge: stats.oldestBridgeAge,
+    oldestBridge: stats.oldestBridge,
     averageDailyTraffic: stats.averageDailyTraffic,
     statesCovered: stats.statesCovered,
     conditionDistribution: [
@@ -247,7 +243,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       { label: "Medium", count: stats.mediumPriorityCount },
       { label: "Low", count: stats.lowPriorityCount },
     ],
-    topRiskStates,
+    highestRiskStates: topRiskStates,
   };
 }
 

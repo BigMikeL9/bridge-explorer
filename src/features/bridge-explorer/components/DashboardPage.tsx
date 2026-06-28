@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip } from "@/components/ui/tooltip";
 import { formatNumber } from "@/features/bridge-explorer/utils/formatters";
@@ -21,6 +23,8 @@ import {
   TrafficCone,
 } from "lucide-react";
 import Link from "next/link";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 const conditionOrder = ["Good", "Fair", "Poor", "Unknown"];
 const priorityOrder = ["Critical", "High", "Medium", "Low"];
@@ -45,7 +49,7 @@ const summaryCards = [
     accent: "text-[var(--condition-poor-text)]",
     change: "condition",
     icon: AlertTriangle,
-    key: "poorConditionBridges",
+    key: "poorConditionCount",
     label: "Poor condition bridges",
     sparkline: sparklinePaths[1],
     tooltip: "Count of bridges normalized to Poor condition from FHWA/NBI condition values.",
@@ -54,7 +58,7 @@ const summaryCards = [
     accent: "text-[var(--priority-critical-text)]",
     change: "priority",
     icon: Activity,
-    key: "criticalPriorityBridges",
+    key: "criticalPriorityCount",
     label: "Critical priority bridges",
     sparkline: sparklinePaths[1],
     tooltip:
@@ -73,7 +77,7 @@ const summaryCards = [
     accent: "text-[var(--priority-high-text)]",
     change: "oldest",
     icon: CalendarClock,
-    key: "oldestBridgeAge",
+    key: "oldestBridge",
     label: "Oldest bridge",
     sparkline: sparklinePaths[1],
     tooltip: "Maximum calculated bridge age in the imported dataset.",
@@ -89,8 +93,26 @@ const summaryCards = [
   },
 ] as const;
 
+async function fetchDashboardSummary(): Promise<DashboardSummary> {
+  const response = await fetch("/api/dashboard/summary");
+
+  if (!response.ok) {
+    throw new Error(`Dashboard summary failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<DashboardSummary>;
+}
+
+function useDashboardSummaryQuery() {
+  return useQuery({
+    queryKey: ["dashboard", "summary"],
+    queryFn: fetchDashboardSummary,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 function summaryValue(summary: DashboardSummary, key: (typeof summaryCards)[number]["key"]) {
-  if (key === "averageBridgeAge" || key === "oldestBridgeAge") {
+  if (key === "averageBridgeAge" || key === "oldestBridge") {
     return summary[key] === null
       ? "Unknown"
       : `${Math.round(summary[key])} yrs`;
@@ -103,6 +125,34 @@ function summaryValue(summary: DashboardSummary, key: (typeof summaryCards)[numb
   }
 
   return formatNumber(summary[key]);
+}
+
+function SkeletonBlock({ className }: { className: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-[var(--surface-elevated)] ${className}`}
+    />
+  );
+}
+
+function MetricCardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <SkeletonBlock className="h-4 w-36" />
+            <SkeletonBlock className="mt-4 h-8 w-28" />
+          </div>
+          <SkeletonBlock className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="mt-5 flex items-end gap-3">
+          <SkeletonBlock className="h-4 w-4 shrink-0 rounded-full" />
+          <SkeletonBlock className="h-12 min-w-0 flex-1" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function MetricCard({
@@ -253,6 +303,31 @@ function ConditionDistributionPanel({
   );
 }
 
+function ConditionDistributionSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Condition distribution</CardTitle>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Share of records in the imported bridge inventory.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {conditionOrder.map((label, index) => (
+          <div key={label}>
+            <div className="mb-2 grid grid-cols-[1fr_auto_auto] items-center gap-3">
+              <SkeletonBlock className="h-4 w-20" />
+              <SkeletonBlock className={`h-3 ${index === 0 ? "w-16" : "w-12"}`} />
+              <SkeletonBlock className="h-3 w-8" />
+            </div>
+            <SkeletonBlock className="h-2 w-full rounded-full" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function PriorityDistributionPanel({
   items,
   total,
@@ -356,6 +431,45 @@ function PriorityDistributionPanel({
   );
 }
 
+function PriorityDistributionSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Priority distribution</CardTitle>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Mix of bridge priority levels across the imported inventory.
+        </p>
+      </CardHeader>
+      <CardContent className="grid gap-5 lg:grid-cols-[240px_1fr] lg:items-center">
+        <div className="relative mx-auto h-48 w-48">
+          <SkeletonBlock className="h-48 w-48 rounded-full" />
+          <div className="absolute inset-9 rounded-full bg-background" />
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-[1fr_80px_40px] gap-3">
+            <SkeletonBlock className="h-3 w-16" />
+            <SkeletonBlock className="h-3 w-14" />
+            <SkeletonBlock className="h-3 w-5" />
+          </div>
+          {priorityOrder.map((label) => (
+            <div
+              className="grid grid-cols-[1fr_80px_40px] items-center gap-3 border-t border-[var(--border-subtle)] pt-3"
+              key={label}
+            >
+              <div className="flex items-center gap-2">
+                <SkeletonBlock className="h-2.5 w-2.5 rounded-full" />
+                <SkeletonBlock className="h-4 w-20" />
+              </div>
+              <SkeletonBlock className="h-3 w-14" />
+              <SkeletonBlock className="h-3 w-7" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function TopRiskStatesTable({ states }: { states: HotspotRow[] }) {
   return (
     <Card className="min-h-0 overflow-hidden">
@@ -420,6 +534,45 @@ function TopRiskStatesTable({ states }: { states: HotspotRow[] }) {
   );
 }
 
+function TopRiskStatesSkeleton() {
+  return (
+    <Card className="min-h-0 overflow-hidden">
+      <CardHeader>
+        <CardTitle>Highest Risk States</CardTitle>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Ranked by composite risk score (condition, priority, age, and traffic).
+        </p>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-[1fr_120px_90px_90px_40px] border-y border-border bg-[var(--surface-elevated)] px-4 py-2">
+          <SkeletonBlock className="h-3 w-14" />
+          <SkeletonBlock className="mx-auto h-3 w-16" />
+          <SkeletonBlock className="mx-auto h-3 w-10" />
+          <SkeletonBlock className="mx-auto h-3 w-14" />
+          <span />
+        </div>
+        <div>
+          {Array.from({ length: 8 }, (_, index) => (
+            <div
+              className="grid grid-cols-[1fr_120px_90px_90px_40px] items-center border-b border-[var(--border-subtle)] px-4 py-3 last:border-b-0"
+              key={index}
+            >
+              <div className="flex items-center gap-2">
+                <SkeletonBlock className="h-4 w-28" />
+                <SkeletonBlock className="h-5 w-8" />
+              </div>
+              <SkeletonBlock className="mx-auto h-4 w-14" />
+              <SkeletonBlock className="mx-auto h-4 w-12" />
+              <SkeletonBlock className="mx-auto h-4 w-12" />
+              <SkeletonBlock className="mx-auto h-4 w-4" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function InventoryTree({ summary }: { summary: DashboardSummary }) {
   return (
     <Card>
@@ -437,11 +590,11 @@ function InventoryTree({ summary }: { summary: DashboardSummary }) {
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--condition-poor-text)]" />
-            {formatNumber(summary.poorConditionBridges)} poor bridges
+            {formatNumber(summary.poorConditionCount)} poor bridges
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--priority-critical-text)]" />
-            {formatNumber(summary.criticalPriorityBridges)} critical priority
+            {formatNumber(summary.criticalPriorityCount)} critical priority
           </div>
         </div>
       </CardContent>
@@ -449,83 +602,193 @@ function InventoryTree({ summary }: { summary: DashboardSummary }) {
   );
 }
 
-export function DashboardPage({ summary }: { summary: DashboardSummary }) {
+function InventoryTreeSkeleton() {
   return (
-    <main className="h-full overflow-auto bg-background text-foreground">
-      <div className="mx-auto flex max-w-[1640px] flex-col gap-4 px-4 py-5 lg:px-6">
-        <section className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold tracking-normal">Overview</h1>
+    <Card>
+      <CardHeader>
+        <CardTitle>Inventory Tree</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <SkeletonBlock className="h-9 w-full" />
+        <div className="space-y-3 pl-4 pt-1">
+          <SkeletonBlock className="h-4 w-32" />
+          <SkeletonBlock className="h-4 w-36" />
+          <SkeletonBlock className="h-4 w-40" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuickActionCard() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <Sparkles className="h-5 w-5 text-muted-foreground" aria-hidden />
+        <p className="mt-4 text-sm font-semibold">Explore bridge risk</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Open the Explorer workspace to filter by state, county, condition,
+          priority, traffic, age, and map bounds.
+        </p>
+        <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            What you can do
+          </p>
+          <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
+            {[
+              "Filter and sort the full bridge inventory",
+              "Visualize risk on the map",
+              "Inspect bridge details",
+              "Identify and prioritize needs",
+            ].map((item) => (
+              <li className="flex items-center gap-2" key={item}>
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Link
+          className="mt-4 inline-flex h-8 items-center gap-2 rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-sm font-medium text-foreground transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          href="/explorer"
+        >
+          Launch workspace
+          <Route className="h-4 w-4" aria-hidden />
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Card className="border-[var(--priority-high-border)]">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <AlertTriangle
+            className="h-4 w-4 text-[var(--priority-high-text)]"
+            aria-hidden
+          />
+          <CardTitle>Dashboard data unavailable</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <p>The dashboard summary could not be loaded. The rest of the app is still available.</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="inline-flex h-8 items-center rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-sm font-medium text-foreground hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onRetry}
+            type="button"
+          >
+            Try again
+          </button>
           <Link
-            className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--brand-border)] bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            className="inline-flex h-8 items-center rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-sm font-medium text-foreground hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             href="/explorer"
           >
             Open Explorer
-            <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
-        </section>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-        <section
-          aria-label="Dashboard summary"
-          className="grid gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3"
-        >
-          {summaryCards.map((card) => (
-            <MetricCard card={card} key={card.key} summary={summary} />
-          ))}
-        </section>
+function DashboardLoadingContent() {
+  return (
+    <>
+      <section
+        aria-label="Dashboard summary loading"
+        className="grid gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3"
+      >
+        {summaryCards.map((card) => (
+          <MetricCardSkeleton key={card.key} />
+        ))}
+      </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <ConditionDistributionPanel
-            items={summary.conditionDistribution}
-            total={summary.totalBridges}
-          />
-          <PriorityDistributionPanel
-            items={summary.priorityDistribution}
-            total={summary.totalBridges}
-          />
-        </section>
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <ConditionDistributionSkeleton />
+        <PriorityDistributionSkeleton />
+      </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_392px]">
-          <TopRiskStatesTable states={summary.topRiskStates} />
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="p-4">
-                <Sparkles className="h-5 w-5 text-muted-foreground" aria-hidden />
-                <p className="mt-4 text-sm font-semibold">Explore bridge risk</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Open the Explorer workspace to filter by state, county, condition,
-                  priority, traffic, age, and map bounds.
-                </p>
-                <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    What you can do
-                  </p>
-                  <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
-                    {[
-                      "Filter and sort the full bridge inventory",
-                      "Visualize risk on the map",
-                      "Inspect bridge details",
-                      "Identify and prioritize needs",
-                    ].map((item) => (
-                      <li className="flex items-center gap-2" key={item}>
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Link
-                  className="mt-4 inline-flex h-8 items-center gap-2 rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-sm font-medium text-foreground transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  href="/explorer"
-                >
-                  Launch workspace
-                  <Route className="h-4 w-4" aria-hidden />
-                </Link>
-              </CardContent>
-            </Card>
-            <InventoryTree summary={summary} />
-          </div>
-        </section>
-      </div>
-    </main>
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_392px]">
+        <TopRiskStatesSkeleton />
+        <div className="space-y-4">
+          <QuickActionCard />
+          <InventoryTreeSkeleton />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function DashboardContent() {
+  const query = useDashboardSummaryQuery();
+
+  if (query.isLoading) {
+    return <DashboardLoadingContent />;
+  }
+
+  if (query.isError || !query.data) {
+    return <DashboardError onRetry={() => void query.refetch()} />;
+  }
+
+  const summary = query.data;
+
+  return (
+    <>
+      <section
+        aria-label="Dashboard summary"
+        className="grid gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3"
+      >
+        {summaryCards.map((card) => (
+          <MetricCard card={card} key={card.key} summary={summary} />
+        ))}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <ConditionDistributionPanel
+          items={summary.conditionDistribution}
+          total={summary.totalBridges}
+        />
+        <PriorityDistributionPanel
+          items={summary.priorityDistribution}
+          total={summary.totalBridges}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_392px]">
+        <TopRiskStatesTable states={summary.highestRiskStates} />
+        <div className="space-y-4">
+          <QuickActionCard />
+          <InventoryTree summary={summary} />
+        </div>
+      </section>
+    </>
+  );
+}
+
+export function DashboardPage() {
+  const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <main className="h-full overflow-auto bg-background text-foreground">
+        <div className="mx-auto flex max-w-[1640px] flex-col gap-4 px-4 py-5 lg:px-6">
+          <section className="flex items-center justify-between gap-4">
+            <h1 className="text-xl font-semibold tracking-normal">Overview</h1>
+            <Link
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--brand-border)] bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              href="/explorer"
+            >
+              Open Explorer
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </section>
+
+          <DashboardContent />
+        </div>
+      </main>
+    </QueryClientProvider>
   );
 }
