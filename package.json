@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "prisma:client": "npx prisma studio",
     "generate:lookups": "tsx scripts/generate-lookups.ts",
     "import:bridges": "tsx scripts/import-bridges.ts"
   },

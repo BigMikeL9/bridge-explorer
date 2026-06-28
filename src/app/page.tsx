@@ -1,5 +1,5 @@
-import { BridgeExplorerPage } from "@/features/bridge-explorer/components/BridgeExplorerPage";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <BridgeExplorerPage />;
+  redirect("/dashboard");
 }

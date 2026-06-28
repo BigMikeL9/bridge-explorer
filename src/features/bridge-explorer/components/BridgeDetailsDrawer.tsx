@@ -8,6 +8,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { BridgeDetailDto } from "@/features/bridge-explorer/api/bridgeDtos";
 import { useBridgeDetailsQuery } from "@/features/bridge-explorer/api/bridgeQueries";
 import { ConditionBadge } from "@/features/bridge-explorer/components/ConditionBadge";
@@ -23,22 +24,51 @@ import {
   formatPercent,
   formatSquareMeters,
 } from "@/features/bridge-explorer/utils/formatters";
-import { RefreshCw, X } from "lucide-react";
+import {
+  Activity,
+  Building2,
+  CalendarClock,
+  ClipboardList,
+  Gauge,
+  Info,
+  LandPlot,
+  MapPinned,
+  RefreshCw,
+  ShieldAlert,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useRef } from "react";
 
 function DetailSection({
   children,
+  icon: Icon,
   title,
+  tooltip,
 }: {
   children: React.ReactNode;
+  icon: LucideIcon;
   title: string;
+  tooltip?: string;
 }) {
   return (
-    <section className="rounded-md border border-border">
-      <h3 className="border-b border-border bg-muted-surface px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+    <section className="overflow-hidden rounded-lg border border-border bg-surface">
+      <h3 className="flex items-center gap-2 border-b border-border bg-[var(--surface-elevated)] px-3 py-2 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" aria-hidden />
         {title}
+        {tooltip ? (
+          <Tooltip label={tooltip}>
+            <span
+              aria-label={`About ${title}`}
+              className="ml-auto inline-flex rounded-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              tabIndex={0}
+            >
+              <Info className="h-3.5 w-3.5" aria-hidden />
+            </span>
+          </Tooltip>
+        ) : null}
       </h3>
-      <div className="grid gap-2 p-3 text-sm">{children}</div>
+      <div className="grid gap-2.5 p-3 text-sm">{children}</div>
     </section>
   );
 }
@@ -51,18 +81,18 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[128px_1fr] gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 font-medium text-foreground">{value}</dd>
+    <div className="grid grid-cols-[118px_1fr] gap-3 border-b border-[var(--border-subtle)] pb-2 last:border-b-0 last:pb-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-sm font-medium leading-5 text-foreground">{value}</dd>
     </div>
   );
 }
 
 function LoadingDrawerBody() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div className="rounded-md border border-border p-3" key={index}>
+        <div className="rounded-lg border border-border bg-surface p-3" key={index}>
           <Skeleton className="h-4 w-28" />
           <Skeleton className="mt-3 h-16 w-full" />
         </div>
@@ -73,9 +103,16 @@ function LoadingDrawerBody() {
 
 function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
   return (
-    <dl className="space-y-4">
-      <DetailSection title="Overview">
-        <DetailRow label="Structure" value={bridge.structureNumber} />
+    <dl className="space-y-3">
+      <DetailSection
+        icon={ClipboardList}
+        title="Overview"
+        tooltip="Core identification, facility, feature, and jurisdiction fields from the bridge record."
+      >
+        <DetailRow
+          label="Structure"
+          value={<span className="font-mono text-xs">{bridge.structureNumber}</span>}
+        />
         <DetailRow label="Facility" value={bridge.facilityCarried ?? "Unknown"} />
         <DetailRow label="Feature" value={bridge.featureIntersected ?? "Unknown"} />
         <DetailRow label="Location" value={bridge.location ?? "Unknown"} />
@@ -85,7 +122,11 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         />
       </DetailSection>
 
-      <DetailSection title="Condition">
+      <DetailSection
+        icon={Activity}
+        title="Condition"
+        tooltip="Condition values come from FHWA/NBI inspection-related ratings normalized for display."
+      >
         <DetailRow label="Overall" value={<ConditionBadge condition={bridge.bridgeCondition} />} />
         <DetailRow label="Lowest rating" value={formatNumber(bridge.lowestRating)} />
         <DetailRow label="Deck" value={formatNumber(bridge.deckCondition)} />
@@ -101,12 +142,21 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         <DetailRow label="Culvert" value={formatNumber(bridge.culvertCondition)} />
       </DetailSection>
 
-      <DetailSection title="Priority reasons">
+      <DetailSection
+        icon={ShieldAlert}
+        title="Priority reasons"
+        tooltip="Application-derived reasons explaining the rule-based priority label."
+      >
         <DetailRow label="Priority" value={<PriorityBadge priority={bridge.priorityLevel} />} />
         {bridge.priorityReasons.length > 0 ? (
-          <ul className="col-span-full list-disc space-y-1 pl-5 text-sm">
+          <ul className="col-span-full space-y-1.5 text-sm">
             {bridge.priorityReasons.map((reason) => (
-              <li key={reason}>{reason}</li>
+              <li
+                className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-2.5 py-1.5"
+                key={reason}
+              >
+                {reason}
+              </li>
             ))}
           </ul>
         ) : (
@@ -114,7 +164,11 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         )}
       </DetailSection>
 
-      <DetailSection title="Traffic">
+      <DetailSection
+        icon={Gauge}
+        title="Traffic"
+        tooltip="Traffic fields include Average Daily Traffic and related traffic-year values from NBI data."
+      >
         <DetailRow label="ADT" value={formatNumber(bridge.averageDailyTraffic)} />
         <DetailRow label="Traffic year" value={formatNumber(bridge.trafficYear)} />
         <DetailRow
@@ -127,7 +181,11 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         />
       </DetailSection>
 
-      <DetailSection title="Timeline">
+      <DetailSection
+        icon={CalendarClock}
+        title="Timeline / Inspection"
+        tooltip="Includes construction year, calculated age, and recorded inspection dates."
+      >
         <DetailRow label="Built" value={formatNumber(bridge.yearBuilt)} />
         <DetailRow
           label="Reconstructed"
@@ -147,7 +205,11 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         />
       </DetailSection>
 
-      <DetailSection title="Geometry">
+      <DetailSection
+        icon={LandPlot}
+        title="Geometry"
+        tooltip="Coordinates are normalized and coordinate validity is derived by the importer."
+      >
         <DetailRow label="Latitude" value={formatDecimal(bridge.latitude)} />
         <DetailRow label="Longitude" value={formatDecimal(bridge.longitude)} />
         <DetailRow
@@ -164,7 +226,11 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
         <DetailRow label="Deck area" value={formatSquareMeters(bridge.deckAreaSqMeters)} />
       </DetailSection>
 
-      <DetailSection title="Ownership / classification">
+      <DetailSection
+        icon={Building2}
+        title="Ownership / classification"
+        tooltip="Ownership, maintenance, functional class, toll, and open-status attributes from NBI data."
+      >
         <DetailRow label="Owner" value={bridge.owner ?? "Unknown"} />
         <DetailRow
           label="Maintenance"
@@ -186,6 +252,17 @@ function BridgeDetailBody({ bridge }: { bridge: BridgeDetailDto }) {
           value={formatCurrency(bridge.improvementCost)}
         />
       </DetailSection>
+
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-surface p-3 text-xs leading-5 text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Data source:</span> FHWA
+          National Bridge Inventory.
+        </p>
+        <p className="mt-1">
+          <span className="font-medium text-foreground">Derived fields:</span> bridge
+          age, priority level, priority reasons, coordinate validity, and search text.
+        </p>
+      </div>
     </dl>
   );
 }
@@ -227,12 +304,15 @@ export function BridgeDetailsDrawer() {
   return (
     <Drawer
       aria-label="Bridge details"
-      className="hidden max-h-[calc(100vh-1px)] w-[380px] shrink-0 overflow-hidden lg:flex lg:flex-col"
+      className="hidden max-h-screen w-[392px] shrink-0 overflow-hidden lg:flex lg:flex-col"
       open={isOpen}
     >
-      <DrawerHeader className="flex flex-row items-center justify-between gap-3">
+      <DrawerHeader className="flex flex-row items-center justify-between gap-3 bg-surface">
         <div>
-          <DrawerTitle>Bridge Details</DrawerTitle>
+          <DrawerTitle className="flex items-center gap-2">
+            <MapPinned className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Bridge Details
+          </DrawerTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             View telemetry is recorded by the detail endpoint.
           </p>
@@ -247,10 +327,10 @@ export function BridgeDetailsDrawer() {
           <X className="h-4 w-4" />
         </Button>
       </DrawerHeader>
-      <DrawerContent className="min-h-0 flex-1 overflow-auto">
+      <DrawerContent className="min-h-0 flex-1 overflow-auto bg-background">
         {query.isLoading ? <LoadingDrawerBody /> : null}
         {query.isError ? (
-          <div className="flex flex-col items-start gap-3 rounded-md border border-border p-4">
+          <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface p-4">
             <p className="text-sm font-medium">Bridge details could not be loaded.</p>
             <p className="text-sm text-muted-foreground">
               The selected bridge remains open so the request can be retried.

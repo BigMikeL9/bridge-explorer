@@ -25,10 +25,5 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# raw FHWA/NBI data and generated local datasets
 data/
-*.txt
-data/
-*.txt
-
-data/
-*.txt

@@ -3,31 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-enum BridgeCondition {
-  Good
-  Fair
-  Poor
-  Unknown
-}
-
-enum PriorityLevel {
-  Critical
-  High
-  Medium
-  Low
-}
-
 model Bridge {
-  id                        String          @id @default(cuid())
-  structureNumber           String          @unique
-  stateCode                 String          @db.VarChar(2)
+  id                        String                   @id @default(cuid())
+  structureNumber           String                   @unique
+  stateCode                 String                   @db.VarChar(2)
   stateName                 String
-  countyCode                String          @db.VarChar(5)
+  countyCode                String                   @db.VarChar(5)
   countyName                String
   district                  String?
   facilityCarried           String?
@@ -35,7 +21,7 @@ model Bridge {
   featureIntersected        String?
   latitude                  Float?
   longitude                 Float?
-  hasValidCoordinates       Boolean         @default(false)
+  hasValidCoordinates       Boolean                  @default(false)
   averageDailyTraffic       Int?
   trafficYear               Int?
   truckTrafficPercent       Float?
@@ -46,7 +32,7 @@ model Bridge {
   lastInspectionDate        DateTime?
   inspectionFrequencyMonths Int?
   nextInspectionDueDate     DateTime?
-  bridgeCondition           BridgeCondition @default(Unknown)
+  bridgeCondition           BridgeCondition          @default(Unknown)
   lowestRating              Int?
   deckCondition             Int?
   superstructureCondition   Int?
@@ -54,8 +40,8 @@ model Bridge {
   channelCondition          Int?
   culvertCondition          Int?
   structuralEvaluation      Int?
-  priorityLevel             PriorityLevel   @default(Low)
-  priorityReasons           String[]        @default([])
+  priorityLevel             PriorityLevel            @default(Low)
+  priorityReasons           String[]                 @default([])
   structureLengthMeters     Float?
   maxSpanLengthMeters       Float?
   roadwayWidthMeters        Float?
@@ -70,17 +56,15 @@ model Bridge {
   fractureCritical          Boolean?
   improvementCost           Float?
   improvementYear           Int?
-  viewCount                 Int             @default(0)
+  viewCount                 Int                      @default(0)
   lastViewedAt              DateTime?
-  searchText                String          @default("") @db.Text
-
+  searchText                String                   @default("")
   /// PostGIS point generated from longitude and latitude by a raw SQL migration.
   /// Prisma cannot populate this field directly; keep lat/lng as the portable source of truth.
-  coordinateGeometry Unsupported("geometry(Point,4326)")?
-
+  coordinateGeometry        Unsupported("geometry")?
   /// PostgreSQL full-text vector maintained by a raw SQL migration or trigger.
   /// The importer should still provide searchText for simple filtering and fallback search.
-  searchVector Unsupported("tsvector")?
+  searchVector              Unsupported("tsvector")?
 
   @@index([stateCode])
   @@index([countyCode])
@@ -97,4 +81,27 @@ model Bridge {
   @@index([lastViewedAt(sort: Desc)])
   @@index([coordinateGeometry], type: Gist)
   @@index([searchVector], type: Gin)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+enum BridgeCondition {
+  Good
+  Fair
+  Poor
+  Unknown
+}
+
+enum PriorityLevel {
+  Critical
+  High
+  Medium
+  Low
 }

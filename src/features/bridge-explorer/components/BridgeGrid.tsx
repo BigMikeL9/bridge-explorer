@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { BridgeGridDto } from "@/features/bridge-explorer/api/bridgeDtos";
 import { useBridgeGridQuery } from "@/features/bridge-explorer/api/bridgeQueries";
 import { ConditionBadge } from "@/features/bridge-explorer/components/ConditionBadge";
@@ -16,7 +17,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown, RefreshCw, RotateCcw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  Info,
+  RefreshCw,
+  RotateCcw,
+} from "lucide-react";
 import { useMemo } from "react";
 
 const columns: Array<ColumnDef<BridgeGridDto>> = [
@@ -77,6 +85,40 @@ const columns: Array<ColumnDef<BridgeGridDto>> = [
   },
 ];
 
+const numericColumnIds = new Set(["averageDailyTraffic", "bridgeAge"]);
+const headerTooltips: Record<string, string> = {
+  bridgeAge: "Calculated from yearBuilt using the current year.",
+  bridgeCondition: "FHWA/NBI bridge condition value normalized to Good, Fair, Poor, or Unknown.",
+  averageDailyTraffic: "Average Daily Traffic: estimated vehicles per day.",
+  lastInspectionDate: "Last recorded inspection date in the NBI data.",
+  priorityLevel:
+    "Application-derived, rule-based classification; this is not an official NBI field.",
+};
+
+function columnAlignmentClassName(columnId: string) {
+  return numericColumnIds.has(columnId) ? "text-center" : "text-left";
+}
+
+function HeaderTooltip({ columnId }: { columnId: string }) {
+  const label = headerTooltips[columnId];
+
+  if (!label) {
+    return null;
+  }
+
+  return (
+    <Tooltip label={label}>
+      <span
+        aria-label={`About ${columnId}`}
+        className="inline-flex rounded-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        tabIndex={0}
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden />
+      </span>
+    </Tooltip>
+  );
+}
+
 function LoadingRows() {
   return (
     <tbody>
@@ -134,19 +176,19 @@ export function BridgeGrid() {
   const isEmpty = !query.isLoading && !query.isError && data.length === 0;
 
   return (
-    <Card className="flex min-h-[520px] flex-col overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 bg-surface">
         <div>
           <CardTitle>Bridge Grid</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Server-side filtered and sorted bridge inventory records.
           </p>
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="font-mono text-xs text-muted-foreground">
           {query.data ? `${formatNumber(query.data.totalCount)} bridges` : "Loading"}
         </div>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col p-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {query.isError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
             <p className="text-sm font-medium">Bridge grid could not be loaded.</p>
@@ -172,38 +214,57 @@ export function BridgeGrid() {
           </div>
         ) : (
           <>
-            <div className="max-h-[560px] overflow-auto">
+            <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-                <thead className="sticky top-0 z-10 border-b border-border bg-muted-surface text-xs font-medium text-muted-foreground">
+                <thead className="sticky top-0 z-10 border-b border-border bg-[var(--surface-elevated)] text-xs font-semibold text-muted-foreground shadow-[0_1px_0_var(--border)]">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header) => (
-                        <th className="px-3 py-2" key={header.id} scope="col">
+                        <th
+                          className={cn(
+                            "px-3 py-2",
+                            columnAlignmentClassName(header.column.id)
+                          )}
+                          key={header.id}
+                          scope="col"
+                        >
                           {header.column.getCanSort() === false ? (
-                            flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )
-                          ) : (
-                            <button
-                              className="inline-flex items-center gap-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              onClick={() => toggleSort(header.column.id)}
-                              type="button"
-                            >
+                            <div className="inline-flex items-center gap-1">
                               {flexRender(
                                 header.column.columnDef.header,
                                 header.getContext()
                               )}
-                              {sort.sortBy === header.column.id ? (
-                                sort.sortDirection === "asc" ? (
-                                  <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-                                ) : (
-                                  <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-                                )
-                              ) : (
-                                <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden />
+                              <HeaderTooltip columnId={header.column.id} />
+                            </div>
+                          ) : (
+                            <div
+                              className={cn(
+                                "inline-flex items-center gap-1",
+                                numericColumnIds.has(header.column.id) &&
+                                "justify-end text-right"
                               )}
-                            </button>
+                            >
+                              <button
+                                className="inline-flex items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onClick={() => toggleSort(header.column.id)}
+                                type="button"
+                              >
+                                {flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                                {sort.sortBy === header.column.id ? (
+                                  sort.sortDirection === "asc" ? (
+                                    <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                                  ) : (
+                                    <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                                  )
+                                ) : (
+                                  <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden />
+                                )}
+                              </button>
+                              <HeaderTooltip columnId={header.column.id} />
+                            </div>
                           )}
                         </th>
                       ))}
@@ -221,9 +282,9 @@ export function BridgeGrid() {
                         <tr
                           aria-selected={isSelected}
                           className={cn(
-                            "cursor-pointer border-b border-border transition-colors hover:bg-muted-surface focus:bg-muted-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                            "cursor-pointer border-b border-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)] focus:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                             isSelected &&
-                              "bg-[color-mix(in_srgb,var(--ring)_12%,transparent)]"
+                            "bg-[var(--surface-selected)] shadow-[inset_3px_0_0_var(--ring)]"
                           )}
                           key={row.id}
                           onClick={() => setSelectedBridgeId(row.original.id)}
@@ -235,7 +296,14 @@ export function BridgeGrid() {
                           tabIndex={0}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <td className="px-3 py-2.5 align-middle" key={cell.id}>
+                            <td
+                              className={cn(
+                                "px-3 py-2 align-middle",
+                                cell.column.id === "structureNumber" && "font-mono text-xs",
+                                columnAlignmentClassName(cell.column.id)
+                              )}
+                              key={cell.id}
+                            >
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
@@ -249,7 +317,7 @@ export function BridgeGrid() {
                 )}
               </table>
             </div>
-            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
+            <div className="flex items-center justify-between border-t border-border bg-surface px-4 py-2.5 text-sm">
               <span className="text-muted-foreground">
                 Page {pagination.page} of {Math.max(totalPages, 1)}
               </span>

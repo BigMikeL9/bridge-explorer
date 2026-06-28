@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { BridgeMapMarkerDto } from "@/features/bridge-explorer/api/bridgeDtos";
 import { useBridgeMapQuery } from "@/features/bridge-explorer/api/bridgeQueries";
 import { useBridgeExplorerStore } from "@/features/bridge-explorer/state/useBridgeExplorerStore";
+import { formatNumber } from "@/features/bridge-explorer/utils/formatters";
 import { cn } from "@/lib/utils";
 import maplibregl, {
   type LngLatBoundsLike,
@@ -232,16 +233,16 @@ const STATE_BOUNDS: Record<string, LngLatBoundsLike> = {
     [-65.22, 18.52],
   ],
 };
-const LIGHT_BASEMAP_STYLE: StyleSpecification = {
+const DARK_BASEMAP_STYLE: StyleSpecification = {
   version: 8,
   sources: {
-    "carto-light": {
+    "carto-dark": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
       ],
       tileSize: 256,
       attribution:
@@ -250,9 +251,9 @@ const LIGHT_BASEMAP_STYLE: StyleSpecification = {
   },
   layers: [
     {
-      id: "carto-light",
+      id: "carto-dark",
       type: "raster",
-      source: "carto-light",
+      source: "carto-dark",
       minzoom: 0,
       maxzoom: 20,
     },
@@ -282,16 +283,16 @@ function markerToneClassName(marker: BridgeMapMarkerDto) {
 function markerButtonClassName(isSelected: boolean) {
   return cn(
     "cursor-pointer group flex h-8 w-8 items-center justify-center rounded-full outline-none",
-    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     isSelected && "z-10"
   );
 }
 
 function markerDotClassName(marker: BridgeMapMarkerDto, isSelected: boolean) {
   return cn(
-    "block rounded-full border-[3px] border-white shadow-[0_2px_8px_rgba(20,30,40,0.32)] ring-1 ring-black/10",
-    "transition-[box-shadow,border-color,opacity] duration-150 group-hover:shadow-[0_3px_12px_rgba(20,30,40,0.42)] group-hover:ring-2 group-hover:ring-[color-mix(in_srgb,var(--ring)_28%,transparent)]",
-    "group-focus-visible:shadow-[0_3px_12px_rgba(20,30,40,0.42)]",
+    "block rounded-full border-[3px] border-background shadow-[0_2px_10px_rgba(0,0,0,0.5)] ring-1 ring-white/20",
+    "transition-[box-shadow,border-color,opacity] duration-150 group-hover:shadow-[0_0_0_4px_color-mix(in_srgb,var(--ring)_22%,transparent),0_3px_12px_rgba(0,0,0,0.54)] group-hover:ring-2 group-hover:ring-[color-mix(in_srgb,var(--ring)_36%,transparent)]",
+    "group-focus-visible:shadow-[0_0_0_4px_color-mix(in_srgb,var(--ring)_26%,transparent),0_3px_12px_rgba(0,0,0,0.54)]",
     markerToneClassName(marker),
     isSelected
       ? "h-3.5 w-3.5 ring-4 ring-[color-mix(in_srgb,var(--ring)_42%,transparent)]"
@@ -301,6 +302,115 @@ function markerDotClassName(marker: BridgeMapMarkerDto, isSelected: boolean) {
 
 function markerLabel(marker: BridgeMapMarkerDto) {
   return `Bridge ${marker.structureNumber}: ${marker.bridgeCondition} condition, ${marker.priorityLevel} priority`;
+}
+
+function popupBadgeClassName(kind: "condition" | "priority", value: string) {
+  if (kind === "condition") {
+    if (value === "Good") {
+      return "border-[var(--condition-good-border)] bg-[var(--condition-good-bg)] text-[var(--condition-good-text)]";
+    }
+    if (value === "Fair") {
+      return "border-[var(--condition-fair-border)] bg-[var(--condition-fair-bg)] text-[var(--condition-fair-text)]";
+    }
+    if (value === "Poor") {
+      return "border-[var(--condition-poor-border)] bg-[var(--condition-poor-bg)] text-[var(--condition-poor-text)]";
+    }
+
+    return "border-border bg-muted-surface text-muted-foreground";
+  }
+
+  if (value === "Critical") {
+    return "border-[var(--priority-critical-border)] bg-[var(--priority-critical-bg)] text-[var(--priority-critical-text)]";
+  }
+  if (value === "High") {
+    return "border-[var(--priority-high-border)] bg-[var(--priority-high-bg)] text-[var(--priority-high-text)]";
+  }
+  if (value === "Medium") {
+    return "border-[var(--priority-medium-border)] bg-[var(--priority-medium-bg)] text-[var(--priority-medium-text)]";
+  }
+
+  return "border-[var(--priority-low-border)] bg-[var(--priority-low-bg)] text-[var(--priority-low-text)]";
+}
+
+function createTextElement(tagName: "div" | "p" | "span", className: string, text: string) {
+  const element = document.createElement(tagName);
+  element.className = className;
+  element.textContent = text;
+
+  return element;
+}
+
+function createPopupBadge(kind: "condition" | "priority", value: string) {
+  const badge = document.createElement("span");
+  badge.className = cn(
+    "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+    popupBadgeClassName(kind, value)
+  );
+  const dot = document.createElement("span");
+  dot.className = "h-1.5 w-1.5 rounded-full bg-current";
+  badge.appendChild(dot);
+  badge.append(value);
+
+  return badge;
+}
+
+function createMarkerPopupContent(
+  marker: BridgeMapMarkerDto,
+  onViewDetails: () => void
+) {
+  const container = document.createElement("div");
+  container.className = "w-64 p-3 pr-8 text-sm text-foreground";
+
+  const heading = createTextElement(
+    "div",
+    "truncate text-sm font-semibold tracking-normal",
+    marker.structureNumber
+  );
+  container.appendChild(heading);
+
+  if (marker.facilityCarried) {
+    container.appendChild(
+      createTextElement(
+        "p",
+        "mt-0.5 truncate text-xs text-muted-foreground",
+        marker.facilityCarried
+      )
+    );
+  }
+
+  container.appendChild(
+    createTextElement(
+      "p",
+      "mt-2 border-t border-border pt-2 text-xs text-muted-foreground",
+      `${marker.stateName} / ${marker.countyName}`
+    )
+  );
+
+  const badgeRow = document.createElement("div");
+  badgeRow.className = "mt-3 flex flex-wrap gap-1.5";
+  badgeRow.appendChild(createPopupBadge("condition", marker.bridgeCondition));
+  badgeRow.appendChild(createPopupBadge("priority", marker.priorityLevel));
+  container.appendChild(badgeRow);
+
+  if (marker.averageDailyTraffic !== null) {
+    container.appendChild(
+      createTextElement(
+        "p",
+        "mt-3 rounded-md bg-muted-surface px-2.5 py-1.5 text-xs font-medium text-foreground",
+        `ADT ${formatNumber(marker.averageDailyTraffic)}`
+      )
+    );
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className =
+    "mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-xs font-medium text-foreground transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  button.textContent = "View details";
+  button.addEventListener("click", onViewDetails);
+  container.appendChild(button);
+
+  return container;
 }
 
 function boundsFromMap(map: Map) {
@@ -339,6 +449,7 @@ export function BridgeMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markerRefs = useRef<maplibregl.Marker[]>([]);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
   const lastCountyFitKeyRef = useRef<string | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -362,7 +473,7 @@ export function BridgeMap() {
       container: containerRef.current,
       maxZoom: 14,
       minZoom: 2,
-      style: LIGHT_BASEMAP_STYLE,
+      style: DARK_BASEMAP_STYLE,
       zoom: INITIAL_ZOOM,
     });
 
@@ -386,6 +497,8 @@ export function BridgeMap() {
     });
 
     return () => {
+      popupRef.current?.remove();
+      popupRef.current = null;
       markerRefs.current.forEach((marker) => marker.remove());
       markerRefs.current = [];
       map.remove();
@@ -442,6 +555,8 @@ export function BridgeMap() {
 
     markerRefs.current.forEach((marker) => marker.remove());
     markerRefs.current = [];
+    popupRef.current?.remove();
+    popupRef.current = null;
 
     for (const marker of query.data?.markers ?? []) {
       const isSelected = selectedBridgeId === marker.id;
@@ -455,8 +570,25 @@ export function BridgeMap() {
       element.setAttribute("aria-pressed", String(isSelected));
       dot.className = markerDotClassName(marker, isSelected);
       element.appendChild(dot);
-      element.addEventListener("click", () => {
-        setSelectedBridgeId(marker.id);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        popupRef.current?.remove();
+        popupRef.current = new maplibregl.Popup({
+          className: "bridge-map-popup",
+          closeButton: true,
+          closeOnClick: true,
+          maxWidth: "280px",
+          offset: 18,
+        })
+          .setLngLat([marker.longitude, marker.latitude])
+          .setDOMContent(
+            createMarkerPopupContent(marker, () => {
+              setSelectedBridgeId(marker.id);
+              popupRef.current?.remove();
+              popupRef.current = null;
+            })
+          )
+          .addTo(map);
       });
 
       const mapMarker = new maplibregl.Marker({ element })
@@ -474,7 +606,7 @@ export function BridgeMap() {
   const shouldPromptForBounds = isMapReady && !mapBounds && !query.isError;
 
   return (
-    <Card className="flex min-h-[520px] flex-col overflow-hidden">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Map View</CardTitle>
@@ -491,15 +623,15 @@ export function BridgeMap() {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="relative h-[560px] min-h-[520px] flex-none overflow-hidden p-0">
+      <CardContent className="relative min-h-0 flex-1 overflow-hidden p-0">
         <div
           ref={containerRef}
-          className="absolute inset-0 bg-muted-surface h-[inherit]"
+          className="absolute inset-0 h-full bg-muted-surface"
           data-testid="bridge-map-container"
         />
 
         {!isMapReady ? (
-          <div className="absolute left-4 top-4 z-10 w-56 rounded-md border border-border bg-surface/95 p-3 shadow-sm">
+          <div className="absolute left-4 top-4 z-10 w-56 rounded-lg border border-border bg-surface p-3 shadow-[0_12px_28px_rgb(0_0_0/0.28)]">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="mt-3 h-3 w-full" />
             <Skeleton className="mt-2 h-3 w-4/5" />
@@ -507,13 +639,13 @@ export function BridgeMap() {
         ) : null}
 
         {query.isLoading ? (
-          <div className="absolute left-4 top-4 z-10 rounded-md border border-border bg-surface/95 p-3 text-sm shadow-sm">
+          <div className="absolute left-4 top-4 z-10 rounded-lg border border-border bg-surface p-3 text-sm shadow-[0_12px_28px_rgb(0_0_0/0.28)]">
             Loading bounded bridge markers...
           </div>
         ) : null}
 
         {shouldPromptForBounds || query.data?.requiresBounds ? (
-          <div className="absolute inset-x-4 top-4 z-10 rounded-md border border-border bg-surface/95 p-3 text-sm shadow-sm md:inset-x-auto md:w-80">
+          <div className="absolute inset-x-4 top-4 z-10 rounded-lg border border-border bg-surface p-3 text-sm shadow-[0_12px_28px_rgb(0_0_0/0.28)] md:inset-x-auto md:w-80">
             <div className="flex gap-2">
               <LocateFixed className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
@@ -527,7 +659,7 @@ export function BridgeMap() {
         ) : null}
 
         {query.isError ? (
-          <div className="absolute left-4 top-4 z-10 rounded-md border border-border bg-surface/95 p-3 text-sm shadow-sm">
+          <div className="absolute left-4 top-4 z-10 rounded-lg border border-border bg-surface p-3 text-sm shadow-[0_12px_28px_rgb(0_0_0/0.28)]">
             <p className="font-medium">Map markers could not be loaded.</p>
             <Button
               className="mt-3"
@@ -542,7 +674,7 @@ export function BridgeMap() {
         ) : null}
 
         {mapError ? (
-          <div className="absolute bottom-4 left-4 z-10 rounded-md border border-border bg-surface/95 p-3 text-sm shadow-sm">
+          <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-border bg-surface p-3 text-sm shadow-[0_12px_28px_rgb(0_0_0/0.28)]">
             <p className="font-medium">{mapError}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Check network access to Carto raster tiles.

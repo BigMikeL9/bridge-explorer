@@ -13,7 +13,7 @@ export function Drawer({ open = true, className, ...props }: DrawerProps) {
   return (
     <aside
       className={cn(
-        "border-l border-border bg-surface text-foreground shadow-sm",
+        "border-l border-border bg-surface text-foreground shadow-[0_1px_0_rgba(255,255,255,0.03)]",
         className
       )}
       {...props}

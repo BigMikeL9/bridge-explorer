@@ -34,6 +34,7 @@ export interface BridgeMapMarkerDto {
   stateName: string;
   countyCode: string;
   countyName: string;
+  facilityCarried: string | null;
   latitude: number;
   longitude: number;
   bridgeCondition: Bridge["bridgeCondition"];
@@ -172,6 +173,7 @@ export function toBridgeMapMarkerDto(
     stateName: bridge.stateName,
     countyCode: bridge.countyCode,
     countyName: bridge.countyName,
+    facilityCarried: bridge.facilityCarried,
     latitude: bridge.latitude,
     longitude: bridge.longitude,
     bridgeCondition: bridge.bridgeCondition,

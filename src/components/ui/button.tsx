@@ -9,17 +9,18 @@ export interface ButtonProps
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   default:
-    "border-transparent bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_90%,black)]",
+    "border-[var(--brand-border)] bg-primary text-primary-foreground hover:bg-[var(--brand-hover)]",
   outline:
-    "border-border bg-surface text-foreground hover:bg-muted-surface",
-  ghost: "border-transparent bg-transparent text-muted-foreground hover:bg-muted-surface hover:text-foreground",
+    "border-border bg-[var(--surface-elevated)] text-foreground hover:bg-[var(--surface-hover)]",
+  ghost:
+    "border-transparent bg-transparent text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground",
   secondary:
-    "border-border bg-muted-surface text-foreground hover:bg-[color-mix(in_srgb,var(--muted-surface)_88%,black)]",
+    "border-border bg-muted-surface text-foreground hover:bg-[var(--surface-hover)]",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 gap-1.5 px-2.5 text-xs",
-  md: "h-9 gap-2 px-3 text-sm",
+  md: "h-8 gap-2 px-3 text-sm",
   icon: "h-8 w-8 p-0",
 };
 
@@ -29,7 +30,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       type={type}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-md border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex shrink-0 items-center justify-center rounded-md border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 cursor-pointer",
         variantClasses[variant],
         sizeClasses[size],
         className

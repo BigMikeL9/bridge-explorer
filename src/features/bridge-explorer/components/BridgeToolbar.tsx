@@ -1,12 +1,12 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { ActiveBridgeExplorerView } from "@/features/bridge-explorer/state/useBridgeExplorerStore";
 import { useBridgeExplorerStore } from "@/features/bridge-explorer/state/useBridgeExplorerStore";
+import { countyLookup } from "@/importer/countyLookup";
 import { Grid2X2, Map, RotateCcw, Search } from "lucide-react";
 
 const states = [
@@ -64,26 +64,24 @@ const states = [
   { code: "72", name: "Puerto Rico" },
 ];
 
-const countiesByState: Record<string, Array<{ code: string; name: string }>> = {
-  "42": [
-    { code: "003", name: "Allegheny" },
-    { code: "101", name: "Philadelphia" },
-    { code: "029", name: "Chester" },
-    { code: "091", name: "Montgomery" },
-  ],
-  "36": [
-    { code: "061", name: "New York" },
-    { code: "047", name: "Kings" },
-  ],
-  "39": [
-    { code: "035", name: "Cuyahoga" },
-    { code: "049", name: "Franklin" },
-  ],
-  "34": [
-    { code: "013", name: "Essex" },
-    { code: "017", name: "Hudson" },
-  ],
-};
+const countiesByState = Object.entries(countyLookup).reduce<
+  Record<string, Array<{ code: string; name: string }>>
+>((groupedCounties, [key, name]) => {
+  const [stateCode, countyCode] = key.split("-");
+
+  if (!stateCode || !countyCode) {
+    return groupedCounties;
+  }
+
+  groupedCounties[stateCode] ??= [];
+  groupedCounties[stateCode].push({ code: countyCode, name });
+
+  return groupedCounties;
+}, {});
+
+for (const counties of Object.values(countiesByState)) {
+  counties.sort((left, right) => left.name.localeCompare(right.name));
+}
 
 function ViewButton({
   active,
@@ -101,7 +99,11 @@ function ViewButton({
       <Button
         aria-pressed={active}
         aria-label={label}
-        className={active ? "bg-primary text-primary-foreground hover:bg-primary" : ""}
+        className={
+          active
+            ? "bg-primary text-primary-foreground shadow-[0_0_0_1px_color-mix(in_srgb,var(--ring)_35%,transparent)] hover:bg-primary"
+            : ""
+        }
         onClick={onClick}
         size="icon"
         variant={active ? "default" : "ghost"}
@@ -133,9 +135,9 @@ export function BridgeToolbar() {
   return (
     <section
       aria-label="Bridge explorer filters"
-      className="border-y border-border bg-surface px-4 py-3"
+      className="shrink-0 border-y border-border bg-background px-4 py-2 lg:px-6"
     >
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2 xl:flex-row xl:items-end">
         <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.45fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_minmax(140px,0.75fr)_minmax(140px,0.75fr)]">
           <label className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Search</span>
@@ -232,7 +234,7 @@ export function BridgeToolbar() {
         </div>
 
         <div className="flex items-center justify-between gap-2 xl:justify-end">
-          <div className="flex items-center rounded-md border border-border bg-muted-surface p-0.5">
+          <div className="flex items-center rounded-lg border border-border bg-muted-surface p-0.5">
             <ViewButton
               active={activeView === "grid"}
               icon={<Grid2X2 className="h-4 w-4" />}
@@ -250,7 +252,6 @@ export function BridgeToolbar() {
             <RotateCcw className="h-4 w-4" />
             Reset
           </Button>
-          <Badge tone="neutral">URL-backed</Badge>
         </div>
       </div>
     </section>

@@ -6,7 +6,8 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const toneClasses: Record<NonNullable<BadgeProps["tone"]>, string> = {
-  neutral: "border-border bg-muted-surface text-muted-foreground",
+  neutral:
+    "border-[var(--condition-unknown-border)] bg-[var(--condition-unknown-bg)] text-[var(--condition-unknown-text)]",
   good: "border-[var(--condition-good-border)] bg-[var(--condition-good-bg)] text-[var(--condition-good-text)]",
   fair: "border-[var(--condition-fair-border)] bg-[var(--condition-fair-bg)] text-[var(--condition-fair-text)]",
   poor: "border-[var(--condition-poor-border)] bg-[var(--condition-poor-bg)] text-[var(--condition-poor-text)]",

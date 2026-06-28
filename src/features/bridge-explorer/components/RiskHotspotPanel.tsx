@@ -30,7 +30,7 @@ function HotspotRow({
 
   return (
     <button
-      className="w-full rounded-md border border-border p-3 text-left transition-colors hover:bg-muted-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="w-full rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-[var(--brand-border)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => onSelect(hotspot)}
       type="button"
     >
@@ -51,7 +51,7 @@ function HotspotRow({
         </Badge>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted-surface">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-elevated)]">
         <div
           className="h-full rounded-full bg-[var(--priority-critical-text)]"
           style={{ width: `${riskWidth}%` }}
@@ -59,20 +59,20 @@ function HotspotRow({
       </div>
 
       <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-        <div>
-          <p className="font-semibold">{formatNumber(hotspot.totalBridgeCount)}</p>
+        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-2 py-1.5">
+          <p className="font-mono font-semibold">{formatNumber(hotspot.totalBridgeCount)}</p>
           <p className="text-muted-foreground">Bridges</p>
         </div>
-        <div>
-          <p className="font-semibold">{formatNumber(hotspot.poorConditionCount)}</p>
+        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-2 py-1.5">
+          <p className="font-mono font-semibold">{formatNumber(hotspot.poorConditionCount)}</p>
           <p className="text-muted-foreground">Poor</p>
         </div>
-        <div>
-          <p className="font-semibold">{formatNumber(hotspot.highCount)}</p>
+        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-2 py-1.5">
+          <p className="font-mono font-semibold">{formatNumber(hotspot.highCount)}</p>
           <p className="text-muted-foreground">High</p>
         </div>
-        <div>
-          <p className="font-semibold">{formatNumber(hotspot.criticalCount)}</p>
+        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-2 py-1.5">
+          <p className="font-mono font-semibold">{formatNumber(hotspot.criticalCount)}</p>
           <p className="text-muted-foreground">Critical</p>
         </div>
       </div>
@@ -99,8 +99,8 @@ export function RiskHotspotPanel() {
   };
 
   return (
-    <Card className="min-h-[520px] overflow-hidden">
-      <CardHeader>
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardHeader className="bg-surface">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-[var(--priority-high-text)]" />
           <CardTitle>Risk Hotspots</CardTitle>
@@ -111,8 +111,8 @@ export function RiskHotspotPanel() {
             : "State-level hotspots across the national inventory."}
         </p>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between">
+      <CardContent className="min-h-0 flex-1 space-y-3 pt-0 overflow-auto bg-background">
+        <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between border-b border-border bg-background px-4 py-3">
           <Badge tone="critical">
             {query.data?.scope === "county" ? "County scope" : "State scope"}
           </Badge>
@@ -123,7 +123,7 @@ export function RiskHotspotPanel() {
 
         {query.isLoading ? (
           Array.from({ length: 6 }).map((_, index) => (
-            <div className="rounded-md border border-border p-3" key={index}>
+            <div className="rounded-lg border border-border bg-surface p-3" key={index}>
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-5 w-12" />
@@ -138,7 +138,7 @@ export function RiskHotspotPanel() {
             </div>
           ))
         ) : query.isError ? (
-          <div className="rounded-md border border-border p-3">
+          <div className="rounded-lg border border-border bg-surface p-3">
             <p className="text-sm font-medium">Hotspots could not be loaded.</p>
             <Button
               className="mt-3"
@@ -151,7 +151,7 @@ export function RiskHotspotPanel() {
             </Button>
           </div>
         ) : query.data?.hotspots.length === 0 ? (
-          <div className="rounded-md border border-border p-4 text-sm text-muted-foreground">
+          <div className="rounded-lg border border-border bg-surface p-4 text-sm text-muted-foreground">
             No hotspots match the current filters.
           </div>
         ) : (

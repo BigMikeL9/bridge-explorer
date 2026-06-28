@@ -27,6 +27,24 @@ export interface HotspotRow {
   riskScore: number;
 }
 
+export interface DashboardDistributionItem {
+  label: string;
+  count: number;
+}
+
+export interface DashboardSummary {
+  totalBridges: number;
+  poorConditionBridges: number;
+  criticalPriorityBridges: number;
+  averageBridgeAge: number | null;
+  oldestBridgeAge: number | null;
+  averageDailyTraffic: number | null;
+  statesCovered: number;
+  conditionDistribution: DashboardDistributionItem[];
+  priorityDistribution: DashboardDistributionItem[];
+  topRiskStates: HotspotRow[];
+}
+
 export function getHotspotScope(query: Pick<BridgeQueryParams, "stateCode">) {
   return query.stateCode ? "county" : "state";
 }
@@ -73,7 +91,9 @@ function buildBridgeWhere(
   return where;
 }
 
-function buildOrderBy(query: BridgeQueryParams): Prisma.BridgeOrderByWithRelationInput {
+function buildOrderBy(
+  query: BridgeQueryParams
+): Prisma.BridgeOrderByWithRelationInput {
   return {
     [query.sortBy]: query.sortDirection,
   };
@@ -140,6 +160,78 @@ export async function getBridgeDetailAndRecordView(
   }
 }
 
+async function listDashboardTopRiskStates(): Promise<HotspotRow[]> {
+  return db.$queryRaw<HotspotRow[]>`
+    SELECT
+      'state' AS scope,
+      "stateCode",
+      "stateName",
+      NULL::text AS "countyCode",
+      NULL::text AS "countyName",
+      COUNT(*)::int AS "totalBridgeCount",
+      COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalCount",
+      COUNT(*) FILTER (WHERE "priorityLevel" = 'High')::int AS "highCount",
+      COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionCount",
+      (
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical') * 3 +
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'High') * 2 +
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')
+      )::int AS "riskScore"
+    FROM "Bridge"
+    GROUP BY "stateCode", "stateName"
+    ORDER BY "riskScore" DESC, "totalBridgeCount" DESC
+    LIMIT 12
+  `;
+}
+
+export async function getDashboardSummary(): Promise<DashboardSummary> {
+  const [
+    totalBridges,
+    poorConditionBridges,
+    criticalPriorityBridges,
+    averages,
+    oldestBridge,
+    states,
+    conditionGroups,
+    priorityGroups,
+    topRiskStates,
+  ] = await Promise.all([
+    db.bridge.count(),
+    db.bridge.count({ where: { bridgeCondition: "Poor" } }),
+    db.bridge.count({ where: { priorityLevel: "Critical" } }),
+    db.bridge.aggregate({
+      _avg: { averageDailyTraffic: true, bridgeAge: true },
+    }),
+    db.bridge.aggregate({ _max: { bridgeAge: true } }),
+    db.bridge.findMany({
+      distinct: ["stateCode"],
+      select: { stateCode: true },
+    }),
+    db.bridge.groupBy({ by: ["bridgeCondition"], _count: { _all: true } }),
+    db.bridge.groupBy({ by: ["priorityLevel"], _count: { _all: true } }),
+    listDashboardTopRiskStates(),
+  ]);
+
+  return {
+    totalBridges,
+    poorConditionBridges,
+    criticalPriorityBridges,
+    averageBridgeAge: averages._avg.bridgeAge,
+    oldestBridgeAge: oldestBridge._max.bridgeAge,
+    averageDailyTraffic: averages._avg.averageDailyTraffic,
+    statesCovered: states.length,
+    conditionDistribution: conditionGroups.map((group) => ({
+      label: group.bridgeCondition,
+      count: group._count._all,
+    })),
+    priorityDistribution: priorityGroups.map((group) => ({
+      label: group.priorityLevel,
+      count: group._count._all,
+    })),
+    topRiskStates,
+  };
+}
+
 export async function listRiskHotspots(
   query: BridgeQueryParams
 ): Promise<HotspotRow[]> {
@@ -157,9 +249,13 @@ export async function listRiskHotspots(
     ? Prisma.sql`AND "priorityLevel" = ${query.priorityLevel}::"PriorityLevel"`
     : Prisma.empty;
   const ageMinSql =
-    query.minAge !== null ? Prisma.sql`AND "bridgeAge" >= ${query.minAge}` : Prisma.empty;
+    query.minAge !== null
+      ? Prisma.sql`AND "bridgeAge" >= ${query.minAge}`
+      : Prisma.empty;
   const ageMaxSql =
-    query.maxAge !== null ? Prisma.sql`AND "bridgeAge" <= ${query.maxAge}` : Prisma.empty;
+    query.maxAge !== null
+      ? Prisma.sql`AND "bridgeAge" <= ${query.maxAge}`
+      : Prisma.empty;
   const adtMinSql =
     query.minAdt !== null
       ? Prisma.sql`AND "averageDailyTraffic" >= ${query.minAdt}`
