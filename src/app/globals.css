@@ -1,0 +1,98 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-surface: var(--surface);
+  --color-muted-surface: var(--muted-surface);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: #f6f7f6;
+  --foreground: #171a1f;
+  --surface: #ffffff;
+  --muted-surface: #eff2f1;
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: #171a1f;
+  --primary: #25313b;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eceb;
+  --secondary-foreground: #25313b;
+  --muted: #eef2f0;
+  --muted-foreground: #68716f;
+  --accent: #e6eeee;
+  --accent-foreground: #203038;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #d8dfdc;
+  --input: #cfd8d5;
+  --ring: #587481;
+  --radius: 0.5rem;
+  --condition-good-bg: #e8f4ee;
+  --condition-good-border: #b8d9c8;
+  --condition-good-text: #1f6b46;
+  --condition-fair-bg: #fff4dc;
+  --condition-fair-border: #ecd08d;
+  --condition-fair-text: #7a5615;
+  --condition-poor-bg: #fbe7e4;
+  --condition-poor-border: #efb7af;
+  --condition-poor-text: #9b2d21;
+  --priority-critical-bg: #f9e6e1;
+  --priority-critical-border: #e9a99b;
+  --priority-critical-text: #8f2619;
+  --priority-high-bg: #fff0d8;
+  --priority-high-border: #e9c17c;
+  --priority-high-text: #765112;
+  --priority-medium-bg: #e7eff8;
+  --priority-medium-border: #b8cde3;
+  --priority-medium-text: #2d5f8b;
+  --priority-low-bg: #e9f3ec;
+  --priority-low-border: #bed8c5;
+  --priority-low-text: #356b46;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ring) 22%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

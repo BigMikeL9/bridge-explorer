@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum BridgeCondition {
+  Good
+  Fair
+  Poor
+  Unknown
+}
+
+enum PriorityLevel {
+  Critical
+  High
+  Medium
+  Low
+}
+
+model Bridge {
+  id                        String          @id @default(cuid())
+  structureNumber           String          @unique
+  stateCode                 String          @db.VarChar(2)
+  stateName                 String
+  countyCode                String          @db.VarChar(5)
+  countyName                String
+  district                  String?
+  facilityCarried           String?
+  location                  String?
+  featureIntersected        String?
+  latitude                  Float?
+  longitude                 Float?
+  hasValidCoordinates       Boolean         @default(false)
+  averageDailyTraffic       Int?
+  trafficYear               Int?
+  truckTrafficPercent       Float?
+  futureAverageDailyTraffic Int?
+  yearBuilt                 Int?
+  yearReconstructed         Int?
+  bridgeAge                 Int?
+  lastInspectionDate        DateTime?
+  inspectionFrequencyMonths Int?
+  nextInspectionDueDate     DateTime?
+  bridgeCondition           BridgeCondition @default(Unknown)
+  lowestRating              Int?
+  deckCondition             Int?
+  superstructureCondition   Int?
+  substructureCondition     Int?
+  channelCondition          Int?
+  culvertCondition          Int?
+  structuralEvaluation      Int?
+  priorityLevel             PriorityLevel   @default(Low)
+  priorityReasons           String[]        @default([])
+  structureLengthMeters     Float?
+  maxSpanLengthMeters       Float?
+  roadwayWidthMeters        Float?
+  deckWidthMeters           Float?
+  deckAreaSqMeters          Float?
+  owner                     String?
+  maintenanceResponsibility String?
+  functionalClass           String?
+  tollStatus                String?
+  openStatus                String?
+  scourCritical             String?
+  fractureCritical          Boolean?
+  improvementCost           Float?
+  improvementYear           Int?
+  viewCount                 Int             @default(0)
+  lastViewedAt              DateTime?
+  searchText                String          @default("") @db.Text
+
+  /// PostGIS point generated from longitude and latitude by a raw SQL migration.
+  /// Prisma cannot populate this field directly; keep lat/lng as the portable source of truth.
+  coordinateGeometry Unsupported("geometry(Point,4326)")?
+
+  /// PostgreSQL full-text vector maintained by a raw SQL migration or trigger.
+  /// The importer should still provide searchText for simple filtering and fallback search.
+  searchVector Unsupported("tsvector")?
+
+  @@index([stateCode])
+  @@index([countyCode])
+  @@index([stateCode, countyCode])
+  @@index([bridgeCondition])
+  @@index([priorityLevel])
+  @@index([stateCode, priorityLevel])
+  @@index([stateCode, bridgeCondition])
+  @@index([averageDailyTraffic(sort: Desc)])
+  @@index([bridgeAge(sort: Desc)])
+  @@index([lastInspectionDate(sort: Desc)])
+  @@index([lowestRating])
+  @@index([viewCount(sort: Desc)])
+  @@index([lastViewedAt(sort: Desc)])
+  @@index([coordinateGeometry], type: Gist)
+  @@index([searchVector], type: Gin)
+}

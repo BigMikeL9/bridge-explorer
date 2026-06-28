@@ -1,0 +1,56 @@
+export type BridgeCondition = "Good" | "Fair" | "Poor" | "Unknown";
+
+export type PriorityLevel = "Critical" | "High" | "Medium" | "Low";
+
+export interface Bridge {
+  id: string;
+  structureNumber: string;
+  stateCode: string;
+  stateName: string;
+  countyCode: string;
+  countyName: string;
+  district: string | null;
+  facilityCarried: string | null;
+  location: string | null;
+  featureIntersected: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  hasValidCoordinates: boolean;
+  averageDailyTraffic: number | null;
+  trafficYear: number | null;
+  truckTrafficPercent: number | null;
+  futureAverageDailyTraffic: number | null;
+  yearBuilt: number | null;
+  yearReconstructed: number | null;
+  bridgeAge: number | null;
+  lastInspectionDate: Date | null;
+  inspectionFrequencyMonths: number | null;
+  nextInspectionDueDate: Date | null;
+  bridgeCondition: BridgeCondition;
+  lowestRating: number | null;
+  deckCondition: number | null;
+  superstructureCondition: number | null;
+  substructureCondition: number | null;
+  channelCondition: number | null;
+  culvertCondition: number | null;
+  structuralEvaluation: number | null;
+  priorityLevel: PriorityLevel;
+  priorityReasons: string[];
+  structureLengthMeters: number | null;
+  maxSpanLengthMeters: number | null;
+  roadwayWidthMeters: number | null;
+  deckWidthMeters: number | null;
+  deckAreaSqMeters: number | null;
+  owner: string | null;
+  maintenanceResponsibility: string | null;
+  functionalClass: string | null;
+  tollStatus: string | null;
+  openStatus: string | null;
+  scourCritical: string | null;
+  fractureCritical: boolean | null;
+  improvementCost: number | null;
+  improvementYear: number | null;
+  viewCount: number;
+  lastViewedAt: Date | null;
+  searchText: string;
+}
