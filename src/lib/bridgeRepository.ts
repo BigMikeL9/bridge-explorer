@@ -45,6 +45,24 @@ export interface DashboardSummary {
   topRiskStates: HotspotRow[];
 }
 
+interface DashboardStatsRow {
+  totalBridges: number;
+  poorConditionBridges: number;
+  criticalPriorityBridges: number;
+  averageBridgeAge: number | null;
+  oldestBridgeAge: number | null;
+  averageDailyTraffic: number | null;
+  statesCovered: number;
+  goodConditionCount: number;
+  fairConditionCount: number;
+  poorConditionCount: number;
+  unknownConditionCount: number;
+  criticalPriorityCount: number;
+  highPriorityCount: number;
+  mediumPriorityCount: number;
+  lowPriorityCount: number;
+}
+
 export function getHotspotScope(query: Pick<BridgeQueryParams, "stateCode">) {
   return query.stateCode ? "county" : "state";
 }
@@ -185,49 +203,50 @@ async function listDashboardTopRiskStates(): Promise<HotspotRow[]> {
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const [
-    totalBridges,
-    poorConditionBridges,
-    criticalPriorityBridges,
-    averages,
-    oldestBridge,
-    states,
-    conditionGroups,
-    priorityGroups,
-    topRiskStates,
-  ] = await Promise.all([
-    db.bridge.count(),
-    db.bridge.count({ where: { bridgeCondition: "Poor" } }),
-    db.bridge.count({ where: { priorityLevel: "Critical" } }),
-    db.bridge.aggregate({
-      _avg: { averageDailyTraffic: true, bridgeAge: true },
-    }),
-    db.bridge.aggregate({ _max: { bridgeAge: true } }),
-    db.bridge.findMany({
-      distinct: ["stateCode"],
-      select: { stateCode: true },
-    }),
-    db.bridge.groupBy({ by: ["bridgeCondition"], _count: { _all: true } }),
-    db.bridge.groupBy({ by: ["priorityLevel"], _count: { _all: true } }),
+  const [statsRows, topRiskStates] = await Promise.all([
+    db.$queryRaw<DashboardStatsRow[]>`
+      SELECT
+        COUNT(*)::int AS "totalBridges",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionBridges",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalPriorityBridges",
+        AVG("bridgeAge")::double precision AS "averageBridgeAge",
+        MAX("bridgeAge")::int AS "oldestBridgeAge",
+        AVG("averageDailyTraffic")::double precision AS "averageDailyTraffic",
+        COUNT(DISTINCT "stateCode")::int AS "statesCovered",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Good')::int AS "goodConditionCount",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Fair')::int AS "fairConditionCount",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Poor')::int AS "poorConditionCount",
+        COUNT(*) FILTER (WHERE "bridgeCondition" = 'Unknown')::int AS "unknownConditionCount",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Critical')::int AS "criticalPriorityCount",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'High')::int AS "highPriorityCount",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Medium')::int AS "mediumPriorityCount",
+        COUNT(*) FILTER (WHERE "priorityLevel" = 'Low')::int AS "lowPriorityCount"
+      FROM "Bridge"
+    `,
     listDashboardTopRiskStates(),
   ]);
+  const stats = statsRows[0];
 
   return {
-    totalBridges,
-    poorConditionBridges,
-    criticalPriorityBridges,
-    averageBridgeAge: averages._avg.bridgeAge,
-    oldestBridgeAge: oldestBridge._max.bridgeAge,
-    averageDailyTraffic: averages._avg.averageDailyTraffic,
-    statesCovered: states.length,
-    conditionDistribution: conditionGroups.map((group) => ({
-      label: group.bridgeCondition,
-      count: group._count._all,
-    })),
-    priorityDistribution: priorityGroups.map((group) => ({
-      label: group.priorityLevel,
-      count: group._count._all,
-    })),
+    totalBridges: stats.totalBridges,
+    poorConditionBridges: stats.poorConditionBridges,
+    criticalPriorityBridges: stats.criticalPriorityBridges,
+    averageBridgeAge: stats.averageBridgeAge,
+    oldestBridgeAge: stats.oldestBridgeAge,
+    averageDailyTraffic: stats.averageDailyTraffic,
+    statesCovered: stats.statesCovered,
+    conditionDistribution: [
+      { label: "Good", count: stats.goodConditionCount },
+      { label: "Fair", count: stats.fairConditionCount },
+      { label: "Poor", count: stats.poorConditionCount },
+      { label: "Unknown", count: stats.unknownConditionCount },
+    ],
+    priorityDistribution: [
+      { label: "Critical", count: stats.criticalPriorityCount },
+      { label: "High", count: stats.highPriorityCount },
+      { label: "Medium", count: stats.mediumPriorityCount },
+      { label: "Low", count: stats.lowPriorityCount },
+    ],
     topRiskStates,
   };
 }

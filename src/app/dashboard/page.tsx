@@ -25,8 +25,7 @@ export default async function DashboardRoute() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              The dashboard could not read the local bridge database. Configure
-              PostgreSQL/PostGIS and import data, then refresh this route.
+              The dashboard could not read from the bridge database.
             </p>
             <Link
               className="inline-flex h-8 items-center rounded-md border border-border bg-[var(--surface-elevated)] px-3 text-sm font-medium text-foreground hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
