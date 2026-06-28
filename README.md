@@ -1,13 +1,26 @@
-# Bridge Explorer
+# Bridge Risk Explorer
 
-Bridge Explorer is a data-dense geospatial workspace for engineers and infrastructure planners working with the National Bridge Inventory (NBI). It supports both single-state files and national all-states datasets, with shared filtering across grid, map, detail, and risk hotspot views.
+Bridge Risk Explorer is a dark, data-first geospatial workspace for exploring FHWA National Bridge Inventory data. It helps infrastructure planners screen bridge condition, traffic, age, priority, and state/county risk patterns across both single-state and national datasets.
+
+## Features
+
+- Dashboard overview with bridge counts, condition/priority distributions, and highest-risk states.
+- Explorer workspace with grid and MapLibre map views.
+- Shared search, state, county, condition, priority, age, and traffic filters.
+- State-first county filtering using generated Census lookup data.
+- Details inspector with source/derived-field context.
+- Rule-based condition and priority badges with contextual tooltips.
+- Risk hotspot panel scoped nationally by state or within a selected state by county.
+- URL-backed Explorer state.
+- National-safe map endpoint that requires bounds and caps marker volume.
+- Access telemetry through `GET /api/bridges/:id`, which records view count and last viewed time.
 
 ## Tech Stack
 
 - Next.js 15 App Router
 - React 19 and TypeScript
 - Tailwind CSS with CSS variables
-- shadcn/ui-compatible local primitives
+- Local shadcn/ui-compatible primitives
 - TanStack Table and TanStack Query
 - Zustand
 - MapLibre GL
@@ -15,7 +28,20 @@ Bridge Explorer is a data-dense geospatial workspace for engineers and infrastru
 - PostgreSQL/PostGIS
 - Vitest and React Testing Library
 - ESLint and Prettier
-- `tsx` importer scripts
+- `tsx` scripts
+
+## Architecture Overview
+
+The app keeps bridge data flat from database to API DTOs. Raw FHWA/NBI field names are isolated to importer files; the UI and API use domain names such as `averageDailyTraffic`, `bridgeCondition`, and `priorityLevel`.
+
+- `prisma/schema.prisma`: flat `Bridge` table and indexes.
+- `src/domain/bridge.ts`: flat TypeScript domain model.
+- `src/importer/*`: raw FHWA/NBI parsing, normalization, lookup, and mapping boundary.
+- `src/lib/bridgeRepository.ts`: database query and aggregation functions.
+- `src/features/bridge-explorer/api/*`: purpose-built DTOs and query hooks.
+- `src/features/bridge-explorer/state/*`: shared Explorer state and URL serialization.
+- `src/features/bridge-explorer/components/*`: dashboard, explorer, grid, map, details, badges, and hotspots.
+- `src/app/api/bridges/*`: Next.js route handlers.
 
 ## Local Setup
 
@@ -25,68 +51,86 @@ cp .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. The root route redirects to `/dashboard`; the Explorer workspace is at `/explorer`.
 
-## PostgreSQL/PostGIS
+## Database Setup
 
-Configure `DATABASE_URL` in `.env`:
+Local development expects PostgreSQL with PostGIS enabled.
 
-```env
-DATABASE_URL="postgresql://bridge_explorer:bridge_explorer@localhost:5432/bridge_explorer?schema=public"
+```sql
+CREATE DATABASE bridge_explorer;
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ```
 
-The schema includes normal latitude/longitude fields plus Prisma `Unsupported` fields for PostGIS geometry and PostgreSQL full-text search vectors. In a production migration, enable extensions and maintain those fields with raw SQL:
+Set `DATABASE_URL` in `.env`, then run Prisma:
+
+```bash
+npx prisma format
+npx prisma migrate dev
+npx prisma generate
+```
+
+The Prisma schema includes latitude/longitude fields plus unsupported PostGIS/search-vector fields. Those fields are documented for production raw SQL migration support; latitude/longitude remain the portable source of truth.
+
+## Data Import Workflow
+
+Large NBI data files must not be committed. The `data/` directory is gitignored.
+
+1. Place the FHWA/NBI delimited text file under `data/`.
+2. Configure `DATABASE_URL` for the target database.
+3. Run the importer manually:
+
+```bash
+npm run import:bridges -- data/2022HwyBridgesDelimitedAllStates.txt
+```
+
+The app does not import data during startup or deployment. The importer streams comma-delimited FHWA/NBI files, maps raw fields into the flat Bridge model, and writes batches with:
+
+```ts
+prisma.bridge.createMany({ data: batch, skipDuplicates: true })
+```
+
+County and state lookup files can be regenerated from the Census county reference file:
+
+```bash
+npm run generate:lookups -- data/national_county2020.txt
+```
+
+## Supabase Deployment Notes
+
+- Create a Supabase PostgreSQL project.
+- Enable PostGIS in Supabase SQL editor:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ```
 
-## Prisma
+- Set `DATABASE_URL` and, if needed by Prisma migrations, `DIRECT_URL`.
+- Run Prisma migrations against the Supabase database from a trusted local environment or CI job.
+- Run the bridge importer manually against the Supabase `DATABASE_URL`.
+- Do not upload or commit the raw NBI file to the app repository.
 
-Format and validate the schema:
+## Vercel Deployment Notes
 
-```bash
-npx prisma format
-npx prisma validate
-```
-
-When a database is available:
-
-```bash
-npx prisma migrate dev
-npx prisma generate
-```
-
-## Importing NBI Data
-
-Import a comma-delimited FHWA/NBI file:
-
-```bash
-npm run import:bridges -- data/NBI_ALL_STATES.txt
-```
-
-Expected CSV format:
-- Header row with raw FHWA/NBI field names.
-- Comma-delimited text parsed by a streaming CSV parser.
-- Supports single-state files and national all-states files without code changes.
-
-The importer batches about 1000 mapped rows and writes with:
-
-```ts
-prisma.bridge.createMany({ data: batch, skipDuplicates: true })
-```
+- Set environment variables in Vercel:
+  - `DATABASE_URL`
+  - `DIRECT_URL` if your migration workflow needs it
+- Deploy the Next.js app normally.
+- Do not run the importer as part of Vercel build/startup.
+- Import data separately from a local machine or controlled job pointed at the hosted database.
+- Confirm the hosted database has PostGIS enabled before running migrations/imports.
 
 ## API Endpoints
 
-- `GET /api/bridges`
-- `GET /api/bridges/map`
-- `GET /api/bridges/hotspots`
-- `GET /api/bridges/:id`
-
-`GET /api/bridges/:id` increments `viewCount`, updates `lastViewedAt`, and returns a `BridgeDetailDto`.
+- `GET /api/bridges`: grid records with pagination, filtering, and sorting.
+- `GET /api/bridges/map`: bounded map markers; returns no national marker dump without bounds.
+- `GET /api/bridges/hotspots`: state-level or county-level risk hotspots.
+- `GET /api/bridges/:id`: bridge details; increments `viewCount` and updates `lastViewedAt`.
 
 Shared query parameters:
+
 - `search`
 - `stateCode`
 - `countyCode`
@@ -105,75 +149,31 @@ Shared query parameters:
 - `east`
 - `west`
 
-## Data Model Decisions
-
-The database schema and API DTOs are intentionally flat. Bridge Explorer does not expose raw database rows from API routes. It uses purpose-built DTOs for:
-
-- `BridgeGridDto`
-- `BridgeMapMarkerDto`
-- `BridgeDetailDto`
-- `RiskHotspotDto`
-
-Raw FHWA/NBI field names are isolated to importer files and importer tests. The app surface uses clean domain names such as `averageDailyTraffic`, `bridgeCondition`, `priorityLevel`, and `stateCode`.
-
-## Condition And Priority Rules
-
-Condition mapping:
-- `G` -> `Good`
-- `F` -> `Fair`
-- `P` -> `Poor`
-- other values -> `Unknown`
-
-Priority levels:
-- `Critical`: lowest rating <= 3, or poor condition with high traffic, scour risk, or fracture-critical risk.
-- `High`: poor condition, lowest rating 4, bridge age >= 70, or ADT >= 25000.
-- `Medium`: fair condition, lowest rating 5, bridge age >= 50, or ADT >= 10000.
-- `Low`: no major risk indicators.
-
-## State-Aware Filtering
-
-State comes before county. Changing `stateCode` clears `countyCode`, and the UI disables county selection until a state is selected. Hotspots follow the same scope:
-
-- No state selected: national state-level hotspots.
-- State selected: county-level hotspots within that state.
-
-## National-Safe Map Behavior
-
-The map endpoint never returns the full national marker set by default. If bounds are missing, it returns:
-
-```json
-{
-  "markers": [],
-  "requiresBounds": true
-}
-```
-
-The map view writes MapLibre bounds into shared state and then requests bounded markers capped by `MAP_MARKER_LIMIT`.
-
-## Testing
+## Testing Commands
 
 ```bash
 npm run test
 npm run typecheck
 npm run lint
+npm run build
 ```
-
-Coverage focuses on normalization, derived fields, DTO mapping, query parsing, shared state, badges, grid interactions, details drawer rendering, and hotspot selection behavior.
 
 ## Known Limitations
 
-- Built within an OA timebox.
-- No auth, editing, exports, saved searches, or chat.
-- Map markers are capped for national performance.
-- Importer is optimized for initial bulk load with `createMany({ skipDuplicates: true })`.
+- Built within a take-home assessment timebox.
+- No auth, editing, exports, saved searches, AI chat, or background sync.
+- Importer is optimized for initial bulk load using `createMany({ skipDuplicates: true })`.
 - Upsert/diff synchronization is future work.
-- Full national county lookup data should be added for production imports.
-- PostGIS geometry/search-vector population needs raw SQL migration work.
+- Map markers are capped for national performance.
+- County viewport fitting uses simple marker/state behavior rather than bundled county polygons.
+- PostGIS geometry/search-vector population may require raw SQL migration work in production.
+- Dashboard is intentionally lightweight and read-only.
 
 ## Future Improvements
 
-- Add production migrations for PostGIS geometry and full-text search.
-- Add full national FIPS county lookup data.
+- Add production-grade raw SQL migrations for geometry and full-text search.
+- Add importer upsert/diff mode for recurring NBI refreshes.
 - Add marker clustering and density-aware map styling.
-- Add integration tests against a seeded database.
-- Add URL sync tests around browser history behavior.
+- Add seeded database integration tests.
+- Add richer dashboard trend data once historical imports exist.
+- Add county boundary data for precise county map fitting.
