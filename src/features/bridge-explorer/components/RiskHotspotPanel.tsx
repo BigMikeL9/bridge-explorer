@@ -30,7 +30,7 @@ function HotspotRow({
 
   return (
     <button
-      className="w-full rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-[var(--brand-border)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="cursor-pointer w-full rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-[var(--brand-border)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => onSelect(hotspot)}
       type="button"
     >
